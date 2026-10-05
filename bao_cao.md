@@ -14,7 +14,7 @@ Hệ thống được chia thành các tệp tin để dễ quản lý: `tools.p
 Trong tệp `tools.py`, các tools được giả lập với một Database đơn giản (`FLIGHT_DB`, `BOOKING_DB`). 
 
 Các lớp (Layers) được tích hợp trực tiếp vào logic của Tools và Harness:
-1.  **Kiểm quyền (Permission Check)**: Tool `book_ticket` yêu cầu tham số `auth_token`. Nếu token không khớp (`valid_token_123`), hệ thống từ chối thực hiện lệnh.
+1.  **Quyền kiểm tra (Permission Check)**: Tool `book_ticket` yêu cầu tham số `auth_token`. Nếu token không khớp (`valid_token_123`), hệ thống từ chối thực hiện lệnh.
 2.  **Ràng buộc dữ liệu (Data Constraint)**: Tool `book_ticket` kiểm tra tính hợp lệ của dữ liệu đầu vào (ví dụ: `passenger_name` phải có từ 3 ký tự trở lên, kiểm tra xem chuyến bay có tồn tại và còn chỗ không).
 3.  **Bàn giao (Handover)**: Tool `handover_to_human` cho phép Agent chuyển tiếp yêu cầu tới nhân viên hỗ trợ khi người dùng yêu cầu hoặc khi Agent bế tắc.
 4.  **Tiêu chí hoàn thành kiểm bằng code**: Trong class `AgentHarness`, phương thức `_check_criteria()` không chỉ phân tích chuỗi văn bản đầu ra (output) của Agent mà còn kiểm tra trạng thái thực tế của hệ thống (ví dụ: Code kiểm tra xem một bản ghi mới đã thực sự được tạo trong `BOOKING_DB` hay chưa).
