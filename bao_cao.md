@@ -36,18 +36,27 @@ Các lớp (Layers) được tích hợp trực tiếp vào logic của Tools v�
 -   **Cài đặt**: Sử dụng kiến trúc của ReAct agent nhưng bổ sung `SystemMessage` điều chỉnh hành vi bắt buộc Agent phải lập kế hoạch (Thought/Plan) trước khi gọi tool và tự đánh giá lại kế hoạch sau mỗi bước.
 -   **Đặc điểm**: Cân bằng giữa tính kỷ luật (của Plan) và tính linh hoạt (của ReAct). Phù hợp với các hệ thống production.
 
-## 4. Đánh giá hiệu quả (Harness Class)
+## 4. Đánh giá hiệu quả (Harness Class) & Thực tế chạy kiểm thử
 
-`AgentHarness` được viết để chạy một bộ test cases (gồm 6 kịch bản bao phủ: Tìm kiếm, Đặt vé thành công, Hết chỗ, Lỗi dữ liệu, Lỗi phân quyền, và Bàn giao). 
+`AgentHarness` được viết để chạy một bộ test cases (gồm 6 kịch bản bao phủ: Tìm kiếm, Đặt vé thành công, Hết chỗ, Lỗi dữ liệu, Lỗi phân quyền, và Bàn giao). Do đặc thù hạn chế của mô hình và thư viện hiện tại, kết quả chạy thực tế phát sinh một số lỗi như sau:
 
-**Tiêu chí đánh giá:**
-1.  **Độ chính xác (Accuracy)**: Tỷ lệ Agent hoàn thành đúng yêu cầu (kể cả việc phản hồi đúng lỗi).
-2.  **Thời gian thực thi (Duration)**: Tốc độ xử lý.
+**Kết quả chạy thực tế:**
+- **ReAct Agent**: Độ chính xác = 16.7%, Thời gian = 9.31s
+- **Plan-then-Execute Agent**: Độ chính xác = 0.0%, Thời gian = 7.44s
+- **Hybrid Agent**: Độ chính xác = 0.0%, Thời gian = 37.88s
 
-**Kết quả kỳ vọng (Phụ thuộc vào mô hình LLM):**
--   **ReAct**: Thời gian phản hồi nhanh nhất. Độ chính xác cao với các task đơn lẻ.
--   **Plan-then-Execute**: Thời gian xử lý chậm hơn (do tốn 1 nhịp gọi LLM để lập kế hoạch ban đầu). Độ chính xác có thể giảm trong các trường hợp báo lỗi giữa chừng (ví dụ: book vé hết chỗ) vì executor ngây thơ có thể bị bối rối bởi kế hoạch cũ.
--   **Hybrid**: Thời gian xử lý ở mức trung bình. Độ chính xác cao nhất vì vừa có kế hoạch, vừa có thể linh hoạt xử lý ngoại lệ (hết chỗ, sai token) mà không bị kẹt.
+**Phân tích nguyên nhân lỗi (Error Analysis):**
+
+1. **ReAct Agent (16.7% - Vượt qua Task 1, Thất bại ở Task 2):**
+   - **Thành công**: Xử lý tốt yêu cầu tìm kiếm đơn giản ở Task 1.
+   - **Thất bại**: Nguyên nhân chính hoàn toàn nằm ở khâu đánh giá bằng chuỗi văn bản (String matching) quá cứng nhắc. Cụ thể, kịch bản yêu cầu câu trả lời của Agent phải chứa cụm từ `"Đặt vé thành công"`. Tuy nhiên, Agent lại sinh ra câu văn tự nhiên hơn: *"Vé chuyến bay F1... đã được đặt thành công!"*. Dù ý nghĩa hoàn toàn giống nhau, việc kiểm tra chuỗi tĩnh `expected.lower() in output.lower()` đã khiến bài test chấm điểm **Trượt (False)**. 
+   - **Điểm sáng**: Dù test báo trượt, nhưng bên dưới hệ thống, Agent **đã thực sự gọi Tool và lưu vé vào Database thành công**. Hàm kiểm tra `len(BOOKING_DB) == 0` đã chạy qua(chứng tỏ Database đã có dữ liệu). Điều này cho thấy nhược điểm rất lớn của phương pháp kiểm thử LLM bằng cách khớp chữ (Hardcode string matching), thay vào đó trong thực tế người ta thường dùng một LLM khác làm Giám khảo (LLM-as-a-Judge) để chấm điểm ngữ nghĩa.
+
+2. **Plan-then-Execute Agent (Lỗi `list` object has no attribute `split`):**
+   - **Nguyên nhân**: Bắt nguồn từ tính không đồng nhất của thư viện `langchain-google-genai`. Thay vì trả về nội dung (content) dưới dạng chuỗi String thuần túy, Google GenAI lại trả về danh sách các đối tượng dạng từ điển (list of dicts). Khi Planner cố gắng gọi hàm `.split('\n')` để tách các bước kế hoạch từ văn bản, chương trình bị crash vì kiểu dữ liệu (Type) không khớp.
+
+3. **Hybrid Agent (Lỗi `429 RESOURCE_EXHAUSTED`):**
+   - **Nguyên nhân**: Hybrid Agent bắt buộc LLM phải "suy nghĩ" liên tục (viết ra kế hoạch ở mỗi bước). Cộng dồn với lượng requests đã gửi từ các Agent trước đó, hệ thống nhanh chóng vượt ngưỡng giới hạn của Google API, dẫn đến việc bị chặn lại (Rate Limit Exceeded).
 
 ## 5. Kết luận
 LangGraph cung cấp bộ công cụ mạnh mẽ để quản lý trạng thái của Agent. 
