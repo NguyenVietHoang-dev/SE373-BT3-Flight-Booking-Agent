@@ -10,7 +10,7 @@ from tools import tools_list
 os.environ["GOOGLE_API_KEY"] = "YOUR_GOOGLE_API_KEY"
 
 try:
-    llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash", temperature=0.3)
+    llm = ChatGoogleGenerativeAI(model="model_name", temperature=0.3)
     
     # 1. ReAct Pattern (Reasoning and Acting)
     react_agent = create_react_agent(llm, tools_list)
